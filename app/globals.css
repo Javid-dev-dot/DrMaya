@@ -1,0 +1,664 @@
+@import "tailwindcss";
+
+:root {
+  --background: #E4E4E4;
+  --foreground: #263A5B;
+
+  /* Runtime brand tokens (light). `@theme inline` below maps the Tailwind
+     utility names onto these, so every background / text utility resolves
+     through `var(--brand-...)`. The `[data-theme="dark"]` block then overrides
+     only these names and the whole site re-themes. (Tailwind `inline` mode
+     bakes the declaration text into utilities — so it must be a var()
+     reference, never a literal.) */
+  --brand-primary: #1C2B4B;      /* Deep Navy — primary actions & logo */
+  --brand-secondary: #E4E4E4;    /* Light Grey — borders & dividers */
+  --brand-accent: #FBA312;        /* Warm Orange — highlights & accents */
+  --brand-dark: #0B111B;         /* Near-Black Navy — headings */
+  --brand-sand: #FDFDFD;         /* Off-White — elevated card surfaces */
+  --brand-cream: #E4E4E4;        /* Light Grey — page & section background */
+  --brand-teal-light: #B8D1F0;   /* Light Sky Blue — secondary accent */
+  --brand-muted: #263A5B;        /* Blue-Grey — body copy */
+  --brand-error: #DC2626;        /* Red — error states */
+  --brand-error-light: #FEE2E2;  /* Light Red — error backgrounds */
+  --overlay: #0B111B;            /* Image overlay (stays dark in both themes) */
+
+  /* Motion tokens — shared across every micro-interaction */
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --ease-out-soft: cubic-bezier(0.22, 1, 0.36, 1);
+  --dur-fast: 160ms;
+  --dur-base: 260ms;
+  --dur-slow: 520ms;
+
+  /* Elevation tinted with the brand hue (never pure black) */
+  --shadow-soft: 0 1px 2px color-mix(in srgb, var(--brand-dark) 15%, transparent), 0 8px 24px color-mix(in srgb, var(--brand-dark) 18%, transparent);
+  --shadow-lift: 0 2px 4px color-mix(in srgb, var(--brand-dark) 20%, transparent), 0 22px 48px color-mix(in srgb, var(--brand-dark) 24%, transparent);
+  --shadow-glow: 0 18px 44px color-mix(in srgb, var(--brand-primary) 28%, transparent);
+}
+
+/* `inline` + var() references: utilities emit `var(--brand-*)`, which is what
+   makes dark mode work by overriding the tokens above. */
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-inter);
+  --font-serif: var(--font-mea-culpa);
+  --font-display: var(--font-limelight);
+
+  /* Grey / Black / Orange / Blue palette from brand reference image */
+  --color-brand-primary: var(--brand-primary);
+  --color-brand-secondary: var(--brand-secondary);
+  --color-brand-accent: var(--brand-accent);
+  --color-brand-dark: var(--brand-dark);
+  --color-brand-sand: var(--brand-sand);
+  --color-brand-cream: var(--brand-cream);
+  --color-brand-teal-light: var(--brand-teal-light);
+  --color-brand-muted: var(--brand-muted);
+  --color-brand-error: var(--brand-error);
+  --color-brand-error-light: var(--brand-error-light);
+  --color-overlay: var(--overlay);
+}
+
+*,
+*::before,
+*::after {
+  border-color: color-mix(in srgb, var(--color-brand-secondary) 70%, transparent);
+}
+
+html {
+  scroll-behavior: smooth;
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  background-color: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-sans), Arial, Helvetica, sans-serif;
+  scroll-behavior: smooth;
+  scroll-padding-top: 6rem;
+  text-underline-offset: 0.22em;
+}
+
+/* Anchor targets clear the sticky header instead of being hidden under it */
+section[id],
+div[id].anchor-target {
+  scroll-margin-top: 5.5rem;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-serif), Georgia, serif;
+  text-wrap: balance;
+}
+
+p {
+  text-wrap: pretty;
+}
+
+/* Keep data/figures optically aligned in lists and stats */
+.tabular {
+  font-variant-numeric: tabular-nums;
+}
+
+::selection {
+  background: color-mix(in srgb, var(--color-brand-primary) 22%, transparent);
+  color: var(--color-brand-dark);
+}
+
+:focus-visible {
+  outline: 2px solid var(--color-brand-primary);
+  outline-offset: 3px;
+  border-radius: 4px;
+}
+
+/* Keyboard-only skip link: visible on focus, invisible otherwise */
+.skip-link {
+  position: fixed;
+  top: 0.75rem;
+  left: 50%;
+  z-index: 100;
+  translate: -50% -160%;
+  padding: 0.75rem 1.5rem;
+  border-radius: 999px;
+  background: var(--color-brand-dark);
+  color: var(--color-brand-cream);
+  font-size: 0.8rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  font-weight: 600;
+  box-shadow: var(--shadow-lift);
+  transition: translate var(--dur-base) var(--ease-spring);
+}
+
+.skip-link:focus-visible {
+  translate: -50% 0;
+  outline-color: var(--color-brand-accent);
+}
+
+.skip-link:focus {
+  translate: -50% 0;
+}
+
+.layout-container {
+  max-width: 1280px;
+  margin-inline: auto;
+  padding-inline: 1.5rem;
+}
+
+@media (min-width: 1024px) {
+  .layout-container {
+    padding-inline: 2rem;
+  }
+}
+
+.hero-text-shadow {
+  text-shadow: 0 2px 24px color-mix(in srgb, var(--color-brand-dark) 65%, transparent);
+}
+
+.glass-surface {
+  border: 1px solid rgba(255, 255, 255, 0.6);
+  background: var(--color-brand-cream);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.8),
+    0 18px 55px color-mix(in srgb, var(--color-brand-dark) 18%, transparent);
+  backdrop-filter: blur(22px) saturate(135%);
+  -webkit-backdrop-filter: blur(22px) saturate(135%);
+}
+
+.glass-nav {
+  background: var(--color-brand-cream);
+  backdrop-filter: blur(18px) saturate(135%);
+  -webkit-backdrop-filter: blur(18px) saturate(135%);
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  .glass-surface,
+  .glass-nav {
+    background: var(--color-brand-cream);
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
+}
+
+/* ---------------------------------------------------------------------------
+   Micro-interaction toolkit
+   Every helper below is transform/opacity only (GPU friendly) and is fully
+   neutralised under `prefers-reduced-motion`.
+--------------------------------------------------------------------------- */
+
+/* Paper-grain overlay: breaks the digital flatness of large cream surfaces */
+.noise-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  opacity: 0.4;
+  mix-blend-mode: multiply;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)' opacity='0.055'/%3E%3C/svg%3E");
+}
+
+/* Interactive lift: shared press/hover feel for cards and buttons */
+.pressable {
+  transition:
+    translate var(--dur-base) var(--ease-out-soft),
+    box-shadow var(--dur-base) var(--ease-out-soft),
+    border-color var(--dur-base) var(--ease-out-soft),
+    background-color var(--dur-base) var(--ease-out-soft),
+    color var(--dur-base) var(--ease-out-soft);
+  will-change: translate;
+}
+
+.pressable:hover {
+  border-color: color-mix(in srgb, var(--color-brand-primary) 32%, transparent);
+  box-shadow: var(--shadow-lift);
+  translate: 0 -3px;
+}
+
+.pressable:active {
+  translate: 0 0;
+  box-shadow: var(--shadow-soft);
+  transition-duration: 90ms;
+}
+
+/* Cursor-tracked spotlight glow (JS writes --mx / --my as percentages) */
+.spotlight {
+  position: relative;
+  isolation: isolate;
+}
+
+.spotlight::before {
+  content: "";
+  position: absolute;
+  inset: -1px;
+  z-index: -1;
+  border-radius: inherit;
+  padding: 1px;
+  background: radial-gradient(
+    240px circle at var(--mx, 50%) var(--my, 50%),
+    color-mix(in srgb, var(--color-brand-primary) 55%, transparent),
+    transparent 68%
+  );
+  opacity: 0;
+  transition: opacity var(--dur-base) var(--ease-out-soft);
+  -webkit-mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  mask-composite: exclude;
+}
+
+.spotlight:hover::before,
+.spotlight:focus-within::before {
+  opacity: 1;
+}
+
+/* Inner ambient glow that follows the pointer */
+.spotlight::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: inherit;
+  background: radial-gradient(
+    420px circle at var(--mx, 50%) var(--my, 50%),
+    color-mix(in srgb, var(--color-brand-sand) 70%, transparent),
+    transparent 62%
+  );
+  opacity: 0;
+  transition: opacity var(--dur-slow) var(--ease-out-soft);
+  pointer-events: none;
+}
+
+.spotlight:hover::after {
+  opacity: 0.85;
+}
+
+/* Magnetic button: pointer offset is written by JS as --tx / --ty */
+.magnetic {
+  transition:
+    translate 420ms var(--ease-spring),
+    box-shadow var(--dur-base) var(--ease-out-soft),
+    background-color var(--dur-base) var(--ease-out-soft),
+    color var(--dur-base) var(--ease-out-soft);
+  translate: var(--tx, 0px) var(--ty, 0px);
+}
+
+.magnetic:active {
+  scale: 0.975;
+  transition-duration: 110ms;
+}
+
+/* Animated underline for inline and nav links */
+.underline-sweep {
+  position: relative;
+}
+
+.underline-sweep::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  bottom: -0.3em;
+  height: 1px;
+  width: 100%;
+  background: currentColor;
+  scale: 0 1;
+  transform-origin: left center;
+  transition: scale var(--dur-base) var(--ease-out-soft);
+}
+
+.underline-sweep:hover::after,
+.underline-sweep:focus-visible::after {
+  scale: 1 1;
+}
+
+/* Nav item that reports the active section with a sliding indicator */
+.nav-link {
+  position: relative;
+}
+
+.nav-link::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  bottom: -0.55rem;
+  width: 0.3rem;
+  height: 0.3rem;
+  border-radius: 999px;
+  background: var(--color-brand-accent);
+  translate: -50% 0;
+  scale: 0;
+  transition: scale 320ms var(--ease-spring);
+}
+
+.nav-link[data-active="true"]::after {
+  scale: 1;
+}
+
+.nav-link[data-active="true"] {
+  color: var(--color-brand-primary);
+}
+
+/* Sheen sweep used on the primary CTA */
+.sheen {
+  position: relative;
+  overflow: hidden;
+}
+
+.sheen::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: -120%;
+  width: 55%;
+  background: linear-gradient(
+    100deg,
+    transparent,
+    rgba(255, 255, 255, 0.28),
+    transparent
+  );
+  skew: -18deg;
+  transition: left 700ms var(--ease-out-soft);
+  pointer-events: none;
+}
+
+.sheen:hover::after {
+  left: 140%;
+}
+
+/* Skeleton placeholder that matches the shape of loaded content */
+.skeleton {
+  position: relative;
+  overflow: hidden;
+  background: color-mix(in srgb, var(--color-brand-secondary) 45%, transparent);
+}
+
+.skeleton::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    color-mix(in srgb, var(--color-brand-cream) 80%, transparent),
+    transparent
+  );
+  animation: sheen-slide 1.4s infinite;
+}
+
+@keyframes sheen-slide {
+  from {
+    translate: -100% 0;
+  }
+  to {
+    translate: 100% 0;
+  }
+}
+
+/* Ambient motion for hero and trust signals */
+@keyframes hint-bob {
+  0%,
+  100% {
+    translate: 0 0;
+    opacity: 0.55;
+  }
+  50% {
+    translate: 0 0.5rem;
+    opacity: 1;
+  }
+}
+
+.scroll-hint {
+  animation: hint-bob 2.4s ease-in-out infinite;
+}
+
+/* Subtle breathing for the SVG loader icon */
+@keyframes pulse-breathe {
+  0%,
+  100% {
+    opacity: 0.75;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.03);
+  }
+}
+
+.stethoscope {
+  width: 4.75rem;
+  height: 4.75rem;
+  display: block;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .stethoscope {
+    animation: none;
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .pulse-breathe {
+    animation: pulse-breathe 2.2s ease-in-out infinite;
+  }
+}
+
+@keyframes soft-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--color-brand-primary) 34%, transparent);
+  }
+  70% {
+    box-shadow: 0 0 0 0.6rem color-mix(in srgb, var(--color-brand-primary) 0%, transparent);
+  }
+}
+
+.pulse-dot {
+  animation: soft-pulse 2.6s ease-out infinite;
+}
+
+/* Quiz / panel height animation without hiding content from AT */
+.reveal-panel {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows 420ms var(--ease-out-soft);
+}
+
+.reveal-panel[data-open="true"] {
+  grid-template-rows: 1fr;
+}
+
+.reveal-panel > div {
+  overflow: hidden;
+  visibility: hidden;
+  transition: visibility 0s linear 420ms;
+}
+
+.reveal-panel[data-open="true"] > div {
+  visibility: visible;
+  transition-delay: 0ms;
+}
+
+/* Image frame with a soft, brand-tinted inner ring */
+.frame-ring {
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.5),
+    0 26px 60px rgba(27, 38, 34, 0.16);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html:focus-within,
+  body {
+    scroll-behavior: auto;
+  }
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+
+  .pressable:hover,
+  .pressable:active {
+    translate: none;
+  }
+
+  .magnetic {
+    translate: none !important;
+  }
+
+  .sheen::after {
+    display: none;
+  }
+
+  .reveal-panel {
+    transition: none;
+  }
+}
+
+/* ----------------------------------------------------------------------------
+   Dark mode — swapped by <html data-theme="dark"> (see lib/useTheme.ts).
+
+   Strategy: the *text-tone* tokens (dark, muted) become light values, the
+   *surface* tokens (cream, sand) become deep navy neutrals, and the light-grey
+   border/secondary pair inverts warm-but-neutral. brand-dark carries the "ink"
+   role, so it becomes the light text colour here, while the surfaces take the
+   near-black navy from the same palette (Grey / Black / Orange / Blue).
+---------------------------------------------------------------------------- */
+@media (prefers-reduced-transparency: reduce) {
+  [data-theme="dark"] .glass-nav,
+  [data-theme="dark"] .glass-surface {
+    background: #060B14;
+  }
+}
+
+[data-theme="dark"] {
+  color-scheme: dark;
+
+  --background: #060B14;
+  --foreground: #FFFFFF;
+
+  /* Surfaces */
+  --brand-cream: #0B1220;     /* Page background (near-black navy) */
+  --brand-sand: #131E33;      /* Elevated surfaces / cards */
+  --brand-secondary: #24344F; /* Borders & dividers */
+
+  /* Ink — body and heading text render white in dark mode */
+  --brand-dark: #FFFFFF;      /* Headings & primary text */
+  --brand-muted: #E9EEF7;     /* Body copy (near-white) */
+
+   /* Interactive accents — orange stays, lifted for contrast on dark */
+  --brand-primary: #9FE2FF;   /* Sky — buttons & links on dark */
+  --brand-teal-light: #7CCBF2;/* Secondary accent text/icons */
+  --brand-accent: #FBB84A;    /* Warm Orange — highlights */
+
+  /* Overlay stays dark so hero/portrait gradients never erase text contrast */
+  --overlay: #04070D;
+
+  /* Elevation tuned so cards read distinctly on the dark canvas */
+  --shadow-soft: 0 1px 2px rgba(0, 0, 0, 0.4), 0 8px 24px rgba(0, 0, 0, 0.32);
+  --shadow-lift: 0 2px 4px rgba(0, 0, 0, 0.45), 0 22px 48px rgba(0, 0, 0, 0.42);
+  --shadow-glow: 0 18px 44px rgba(159, 226, 255, 0.24);
+}
+
+.dark .noise-overlay {
+  opacity: 0.22;
+  mix-blend-mode: screen;
+}
+
+/* Keep the light-on-dark brand surfaces legible in dark mode. */
+[data-theme="dark"] .glass-nav {
+  background: rgba(11, 18, 32, 0.9);
+}
+
+/* ----------------------------------------------------------------------------
+   Dark-mode fixes for the overloaded brand tokens
+---------------------------------------------------------------------------- */
+
+/* `brand-cream` doubles as light text on the dark hero/footer/lightbox. The
+   palette flip makes `cream` a *dark surface*, so those text usages are
+   restored to white here. The attribute selector covers every opacity variant
+   (…/60, …/75, …/80, …/85) in one rule. */
+[data-theme="dark"] [class*="text-brand-cream"] {
+  color: #FFFFFF;
+}
+
+/* Solid primary buttons get a sky fill with deep-navy ink, which keeps them
+   legible and on-brand in dark mode (white-on-light would not be). */
+[data-theme="dark"] .bg-brand-primary.text-white {
+  background: linear-gradient(135deg, #7CCBF2 0%, #4FA8D8 100%);
+  border-color: transparent;
+  color: #08121F;
+}
+
+[data-theme="dark"] .bg-brand-primary.text-white:hover {
+  background: linear-gradient(135deg, #A8E3FF 0%, #6FBCE6 100%);
+  color: #08121F;
+}
+
+/* `brand-dark` doubles as ink for text, so brand-dark *surfaces* (footer,
+   header badge, lightbox overlay) are pinned back to deep navy here. */
+[data-theme="dark"] .bg-brand-dark,
+[data-theme="dark"] .bg-brand-dark\/92 {
+  background-color: #141F36;
+}
+
+/* Stronger shadow for hero headline legibility over the overlay. */
+[data-theme="dark"] .hero-text-shadow {
+  text-shadow: 0 2px 24px rgba(0, 0, 0, 0.6);
+}
+
+/* Form fields: neutral fill so the light `brand-dark` ink stays readable. */
+[data-theme="dark"] .dark-input {
+  background-color: #1A2842;
+  border-color: #24344F;
+}
+
+[data-theme="dark"] .dark-input:focus {
+  border-color: #7CCBF2;
+  box-shadow: 0 0 0 3px rgba(124, 203, 242, 0.28);
+}
+
+/* Native <option> popups are painted by the OS and do NOT inherit the select's
+   background, only its color. Since the ink is white in dark mode, the options
+   would render white-on-white and be completely invisible. Pin both values. */
+[data-theme="dark"] .dark-input option {
+  background-color: #131E33;
+  color: #FFFFFF;
+}
+
+/* Keep the selected value legible on the (dark) select surface. */
+[data-theme="dark"] .dark-input {
+  color: #FFFFFF;
+}
+
+/* Error states rebalanced for dark surfaces. */
+[data-theme="dark"] .dark-panel-error {
+  background-color: rgba(220, 38, 38, 0.14);
+  border-color: rgba(248, 113, 113, 0.35);
+}
+
+/* Form error inputs: tinted error background/border that still reads on dark. */
+[data-theme="dark"] .dark-input.error {
+  background-color: rgba(220, 38, 38, 0.12);
+  border-color: rgba(248, 113, 113, 0.45);
+}
+
+[data-theme="dark"] .dark-input.error:focus {
+  border-color: rgb(248, 113, 113);
+  box-shadow: 0 0 0 3px rgba(248, 113, 113, 0.28);
+}
+
+/* Error text that needs to stay legible in dark mode. */
+[data-theme="dark"] .text-red-700 {
+  color: #fca5a5;
+}
+
+[data-theme="dark"] .text-red-200 {
+  color: #fecaca;
+}
+

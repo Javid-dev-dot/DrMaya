@@ -1,0 +1,308 @@
+================================================================================
+ ANALYSIS: AI-Written Code — Interactive Hooks Library (lib/useMicroInteractions.ts)
+================================================================================
+Project: doc-clone  (Next.js 16 + Tailwind CSS v4, React 19)
+File analyzed: lib/useMicroInteractions.ts (279 lines, 9 custom hooks)
+Lint: PASS (npm run lint)       Types: PASS (tsc --noEmit)
+Date: 2026-10-12
+================================================================================
+
+
+1. STEP-BY-STEP: WHAT EACH PART DOES
+--------------------------------------------------------------------------------
+
+  usePrefersReducedMotion  (lines 17-24)
+    Reads the OS "prefers-reduced-motion: reduce" media query via
+    useSyncExternalStore. Returns true when the user asked for less motion.
+    Hydration-safe because the server snapshot is a fixed constant.
+
+  useScrollProgress  (lines 32-70)
+    Tracks page scroll position (0..1) plus a "past the fold" flag.
+    TWO optimizations:
+      (a) requestAnimationFrame throttle — scroll/resize events are batched
+          to the next repaint instead of firing on every pixel.
+      (b) snapshotRef caching — only allocates a new {progress, scrolled}
+          object when a value actually changed, preventing needless
+          re-renders of consumers.
+    Clamps progress with Math.min(1, Math.max(0, progress)).
+
+  useActiveSection  (lines 73-109)
+    IntersectionObserver-based. Observes every section id and reports which
+    section currently owns the viewport (highest intersection ratio).
+    Feeds navigation underline/active-link highlighting.
+    Thresholds: [0.12, 0.35, 0.6], rootMargin: "-88px 0px -40% 0px".
+
+  useInView  (lines 112-137)
+    One-shot IntersectionObserver. Returns [ref, inView].
+    Observes until the first intersection, then disconnects permanently.
+    Initial state is true when IntersectionObserver is undefined (SSR).
+
+  useCountUp  (lines 140-164)
+    Animates a number 0 -> target using requestAnimationFrame with a
+    cubic ease-out curve:  eased = 1 - (1 - elapsed)^3.
+    COMPOSES useInView (starts when scrolled into view) and
+    usePrefersReducedMotion (skips animation entirely if reduced).
+
+  useMagnetic  (lines 170-193)
+    "Magnetic button" pointer effect. On pointer-move, computes offset
+    from element center and writes --tx/--ty CSS custom properties.
+    The .magnetic CSS class applies translate(--tx, --ty); CSS owns
+    the spring easing. Disabled on touch events and reduced-motion.
+
+  useSpotlight  (lines 196-207)
+    Writes --mx/--my percentages for the .spotlight CSS radial-glow
+    pseudo-elements. Pure pointer-move -> CSS variable.
+
+  useBodyScrollLock  (lines 210-219)
+    Sets document.body.style.overflow = "hidden" while `locked` is true,
+    restoring the previous value on cleanup. Used by modal/lightbox.
+
+  useEscape  (lines 222-231)
+    Listens for the Escape key while `active`. Calls onEscape callback.
+
+  useFocusTrap  (lines 237-279)
+    Keeps Tab focus inside a container. Loops forward (Tab) and backward
+    (Shift+Tab). Restores focus to document.activeElement on deactivate.
+    Filters focusable elements; focuses the first item on open.
+
+
+2. PURPOSE & REAL-WORLD USE CASE
+--------------------------------------------------------------------------------
+
+  This file is the INTERACTION-BEHAVIOR LAYER for a premium clinical-
+  psychologist website. It centralizes three jobs:
+
+  (A) Scroll-driven reactivity
+      - Progress bar (ScrollProgress.tsx)
+      - Nav section highlighting (Header.tsx)
+      - Reveal-on-scroll animations (ScrollReveal.tsx, via GSAP)
+
+  (B) Micro-interaction polish
+      - Magnetic buttons (HeroActions.tsx)
+      - Spotlight cursor glow (SpecialtyCard.tsx, CredentialCard.tsx)
+      - Count-up statistics (HeroStats.tsx)
+      These make the site feel "expensive" rather than templated.
+
+  (C) Modal/lightbox accessibility
+      - Focus trap + scroll lock + Escape-to-close (OfficeGallery.tsx lightbox,
+        Header.tsx mobile nav drawer)
+
+  REAL-WORLD FIT: The hooks let a high-converting professional-services
+  site respond to the user — guiding attention, signaling competence
+  through polish, and remaining fully keyboard/screen-reader usable
+  plus reduced-motion compliant.
+
+
+3. ISSUES, INEFFICIENCIES & IMPROVEMENTS
+--------------------------------------------------------------------------------
+
+3.1 REAL CORRECTNESS ISSUES
+  [I1] useEscape callback churn
+       Header.tsx passes a stable closeMenu (OK), but OfficeGallery.tsx
+       passes an inline () => setOpenIndex(null) which is a NEW function
+       every render — re-runs the effect (re-subscribes) needlessly.
+       FIX: wrap callbacks in useCallback or pass a stable ref.
+
+  [I2] useFocusTrap visibility filter is imperfect
+       Filters focusables with `el.offsetParent !== null`.
+       offsetParent is null for display:none AND for some position:fixed
+       descendants, which can wrongly exclude focusables.
+       FIX: add getComputedStyle(el).visibility check.
+
+  [I3] useInView hydration mismatch
+       useState(() => typeof IntersectionObserver === "undefined")
+       initializes to TRUE on the server (IO undefined) and FALSE on the
+       client. If a consumer gates SSR markup on `inView`, this produces a
+       hydration diff. Safe today only because consumers mount into
+       already-rendered DOM, but it is a latent bug.
+       FIX: start at false and render the un-animated state on SSR, or
+       guard with useSyncExternalStore.
+
+3.2 INEFFICIENCIES
+  [E1] useScrollProgress.getSnapshot is impure
+       Mutates snapshotRef.current INSIDE getSnapshot (line 61). This is a
+       side-effect in a function React expects to be a pure read. It works
+       and is a clever referential-equality optimization, but breaks the
+       purity contract of useSyncExternalStore under concurrent rendering.
+       FIX: derive a memoized snapshot via a separate memo, or accept the
+       (rare) extra re-render.
+
+  [E2] Manual reimplementations of battle-tested libraries
+       focus-trap, react-intersection-observer, and GSAP already provide
+       useInView/useCountUp with edge-case handling (mobile Safari IO
+       quirks, partial thresholds, reverse-triggered re-animation).
+       Hand-rolling saves ~3-5 kB gzipped but increases correctness
+       surface area. Acceptable for this scope; revisit if the app grows.
+
+  [E3] useCountUp doesn't guard against target === 0
+       If a stat target is 0, the animation still fires pointlessly.
+       FIX: early-return if target === 0.
+
+3.3 WHAT'S GENUINELY WELL DONE
+  [G1] requestAnimationFrame throttling on scroll (useScrollProgress + StickyCta)
+  [G2] passive: true on all scroll/resize listeners (prevents scroll jank)
+  [G3] useSyncExternalStore with module-level INITIAL_SCROLL_SNAPSHOT for
+       hydration-safe SSR
+  [G4] Math.min(1, Math.max(0, progress)) clamping on scroll progress
+  [G5] reduced-motion gates in every animation path (ScrollReveal,
+       StaircaseLoader, useCountUp, useMagnetic)
+  [G6] Focus restoration to document.activeElement in the trap
+  [G7] CSS owns the easing (JS only writes variables) — best practice
+
+
+4. BEGINNER-FRIENDLY EXPLANATION (PLAIN ENGLISH)
+--------------------------------------------------------------------------------
+
+  Imagine the website as a stage and the user as the audience. This file
+  holds all the "stage directions" — rules telling parts of the page how to
+  move and react as the person scrolls, clicks, and navigates.
+
+  usePrefersReducedMotion — Some users get dizzy from motion. This checks
+      their computer settings and quietly turns OFF every animation if they
+      asked for less motion.
+
+  useScrollProgress — As you scroll, a thin colored line at the top of the
+      screen slowly fills up (a reading-progress bar). This hook measures
+      "how far down the page are we?" But it's smart: it waits for the
+      browser's next screen repaint instead of measuring on every pixel
+      (which would make the page janky), and it doesn't create new data
+      objects unless the number actually changed.
+
+  useActiveSection — The nav bar has a dot that lights up under whichever
+      section you're reading (About, Specialties, FAQ...). This watches
+      each section slide into view and reports which is most visible.
+
+  useInView — "Has the user scrolled this element onto the screen yet?"
+      Used to trigger an animation exactly once, when first visible.
+      Stops watching afterward (a one-time motion detector).
+
+  useCountUp — The hero stats ("14 years", "4,200+ hours") don't just
+      appear — they COUNT UP from zero like a scoreboard. This drives that,
+      starts counting only when visible, and skips the animation for
+      reduced-motion users.
+
+  useMagnetic / useSpotlight — Moving the mouse over a button makes it
+      gently follow the cursor (like a magnet). Moving over a card makes a
+      soft glow follow the cursor (like a flashlight). Both work by writing
+      invisible CSS variables that the stylesheet reads — JavaScript only
+      reports "where is the mouse," and CSS handles the smooth movement.
+      Touch devices are excluded.
+
+  useBodyScrollLock — When a popup/lightbox opens, the page behind it
+      doesn't scroll. This temporarily locks scroll, then unlocks on close.
+
+  useEscape — Press Escape while a modal is open -> it closes.
+
+  useFocusTrap — While a modal is open, Tab cycles ONLY within the modal
+      (you can't Tab into the background). When closed, keyboard focus jumps
+      back to wherever it was before so keyboard/screen-reader users stay
+      oriented.
+
+
+5. ARCHITECTURE DIAGRAMS
+--------------------------------------------------------------------------------
+
+5a. Component Dependency Graph
+........................................................................
+
+  Browser APIs (matchMedia, IntersectionObserver, requestAnimationFrame)
+        ^
+        |
+        |  consumed by
+        |
+  +--------------------------------------------------------------+
+  |  lib/useMicroInteractions.ts  (the 9 hooks)                  |
+  |                                                              |
+  |  usePrefersReducedMotion  ── gates all animations            |
+  |  useScrollProgress        ── {progress, scrolled}           |
+  |  useActiveSection         ── nav highlight                   |
+  |  useInView                ── one-shot visibility             |
+  |  useCountUp               ── 0 -> target tween              |
+  |  useMagnetic              ── --tx/--ty variables            |
+  |  useSpotlight             ── --mx/--my variables            |
+  |  useBodyScrollLock        ── overflow hide/restore            |
+  |  useEscape                ── keydown Escape                  |
+  |  useFocusTrap             ── Tab loop + focus restore        |
+  +--------------------------------------------------------------+
+        ^
+        |  imported by
+        |
+  app/layout.tsx ──────────► StaircaseLoaderWrapper ──► StaircaseLoader
+                                                         (usePrefersReducedMotion)
+
+  app/page.tsx ──► Header          (useScrollProgress, useActiveSection,
+  |                |                useFocusTrap, useEscape, useBodyScrollLock,
+  |                |                useMagnetic)
+  |                |
+  |                ├─ ScrollProgress   (useScrollProgress)
+  |                ├─ HeroSection      (renders HeroActions, HeroStats)
+  |                ├─ HeroActions      (useMagnetic x2)
+  |                ├─ HeroStats        (useCountUp x3)
+  |                ├─ AboutSection     (TiltFrame, CredentialCard)
+  |                ├─ SpecialtiesSection → SpecialtyCard (useSpotlight)
+  |                ├─ OfficeSection    → OfficeGallery
+  |                ├─ OfficeGallery    (useEscape, useFocusTrap, useBodyScrollLock)
+  |                ├─ FAQSection       (search + accordion)
+  |                ├─ ContactSection   (manual form validation + aria)
+  |                └─ ScrollReveal     (GSAP ScrollTrigger + reduced-motion guard)
+  |
+  └─ ScrollReveal wraps <main> — reads data-reveal / data-text-reveal /
+    data-image-reveal / data-stagger DOM attributes to choreograph
+    entrance animations once per section.
+
+
+5b. Runtime Data Flow — Scroll Event Example
+.......................................................
+
+  USER scrolls
+     │
+     ▼
+  Browser fires "scroll" event
+     │
+     ▼
+  useScrollProgress handler
+     │  (passive: true listener)
+     ▼
+  requestAnimationFrame throttle
+     │  (only one callback per repaint)
+     ▼
+  getSnapshot() reads scrollY + computes {progress, scrolled}
+     │  (returns cached object if unchanged — no re-render)
+     ▼
+  useSyncExternalStore pushes NEW snapshot
+     │
+     ├──► ScrollProgress re-renders  ──► CSS scale() on progress bar
+     │
+     └──► Header re-renders           ──► nav shadow + padding swap
+     │
+     └──► useActiveSection IO fires ──► nav-link[data-active="true"] glow
+
+5c. Runtime Data Flow — Pointer/Mouse Example
+.......................................................
+
+  USER moves mouse
+     │
+     ▼
+  onPointerMove (on button/card)
+     │
+     ├──► useMagnetic handler
+     │       computes offset from center
+     │       writes CSS --tx / --ty
+     │       CSS .magnetic translates (spring-eased)
+     │
+     └──► useSpotlight handler
+             computes percentage position
+             writes CSS --mx / --my
+             CSS .spotlight ::before/::after radial glow follows cursor
+
+
+6. THREE ACTION ITEMS FOR HUMAN REVIEW
+--------------------------------------------------------------------------------
+
+  [1] Stabilize inline escape callbacks (OfficeGallery.tsx line 27:
+      useEscape(isOpen, () => setOpenIndex(null)) -> wrap in useCallback).
+  [2] Harden useFocusTrap visibility check (line 251: add getComputedStyle
+      visibility guard for fixed-position focusables).
+  [3] Decide whether useInView server-init-to-true (line 116) needs
+      guarding if any consumer gates SSR markup on inView.
+================================================================================

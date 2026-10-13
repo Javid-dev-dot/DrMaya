@@ -1,0 +1,7 @@
+{
+  "env": {
+    "ANTHROPIC_BASE_URL": "http://localhost:20128/v1",
+    "ANTHROPIC_AUTH_TOKEN": "sk-f95ef9c4901e3931-a7fca4-f634c0ee",
+    "ANTHROPIC_MODEL": "auto/claude-opus"
+  }
+}

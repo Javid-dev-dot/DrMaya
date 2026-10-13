@@ -1,0 +1,100 @@
+## Code Overview & How to Extend This Next.js + Tailwind Project
+
+### Project Structure
+```
+doc-clone/
+├─ app/                     # Next.js 13+ App Router (pages live here)
+│   ├─ layout.tsx           # Global layout – injects fonts, Tailwind, brand colors
+│   ├─ page.tsx             # Home page – composed of many functional sections
+│   ├─ globals.css           # Tailwind base + custom CSS variables (brand palette)
+│   └─ ... (future pages)
+├─ components/              # Re‑usable UI pieces
+│   ├─ Header.tsx           # Sticky top navigation, uses lucide‑react icons
+│   └─ Footer.tsx           # Footer with contact & quick links
+├─ public/                  # Static assets (favicons, images if any)
+├─ next.config.ts           # Default Next config – you can add rewrites, env vars
+├─ tailwind.config.js       # Tailwind setup – JIT mode, custom colors/fonts
+├─ tsconfig.json            # TypeScript configuration for Next.js
+├─ package.json             # Scripts, dependencies, devDependencies
+└─ CODE_OVERVIEW.txt        # **This file** – guide you are reading now
+```
+
+### Why This Layout?
+1. **App Router (`app/` folder)** – The newest Next.js routing model. It gives a file‑system based hierarchy, automatic server‑side rendering, and easy layout nesting.
+2. **Tailwind CSS** – Utility‑first styling keeps CSS out of component files, lets you compose designs quickly, and enforces a consistent design system via the custom color variables defined in `globals.css`.
+3. **Google Fonts via `next/font/google`** – Load fonts server‑side for optimal performance and avoid CLS. We use *Inter* (sans) for body text and *Cormorant Garamond* (serif) for headings.
+4. **`lucide-react` icons** – Lightweight SVG icon library. It replaces the generic placeholder cart icon from the starter template.
+5. **Component‑driven approach** – Each visually distinct block (Hero, Introduction, Who We Help, etc.) lives in its own function inside `page.tsx`. This makes the page readable and easy to extract into separate files if the app grows.
+
+### How the Home Page (`app/page.tsx`) Is Built
+- **Header & Footer** are imported from `components/` and rendered once, so the navigation and contact information stay consistent across pages.
+- **Section components** (`HeroSection`, `IntroductionSection`, …) are plain React functions returning JSX. They use Tailwind classes for spacing, colors, and responsive behaviour (`md:`, `lg:` prefixes).
+- **Responsive Images** – We use `<img>` tags with `src` from Unsplash for simplicity. In a real project you could replace them with Next.js `Image` for automatic optimisation.
+- **Brand palette** – All color references (`bg-[#597c76]`, `text-[#1b2824]`, …) come from the custom CSS variables defined in `globals.css`. This means you only need to edit the palette in one place if the brand changes.
+- **Layout container** – The `.layout-container` utility (defined in `globals.css`) mirrors a typical max‑width + horizontal padding pattern. It’s used throughout to keep the content centred.
+
+### How to Add New Pages or Sections
+1. **Create a folder or file under `app/`** – e.g. `app/about/page.tsx` will be served at `/about` automatically.
+2. **Reuse the `RootLayout`** – All pages automatically wrap with the layout defined in `layout.tsx` (fonts, body classes).
+3. **Add a component** – If you need a reusable piece (e.g., a Card or a Modal), add a file in `components/` and export it. Import it where you need it.
+4. **Update Tailwind** – If you introduce new custom colors, add them to `globals.css` under the `@theme inline` block and reference them via `var(--color‑brand‑…)`.
+
+### Running the Project Locally
+```bash
+# Install dependencies (you already have them)
+npm install
+
+# Development server (hot‑reload)
+npm run dev
+# → Open http://localhost:3000 in your browser
+
+# Production build (checks for errors)
+npm run build
+
+# Lint (ensures code‑style compliance)
+npm run lint
+```
+
+### Adding Tests (recommended for future work)
+We suggest using **Vitest** + **Testing Library** because they work well with Vite/Turbopack (used by Next 16). Example steps:
+```bash
+npm i -D vitest @testing-library/react @testing-library/jest-dom
+# Add a basic test file: app/__tests__/Home.test.tsx
+# Sample test:
+import { render, screen } from "@testing-library/react";
+import Home from "../page";
+
+test('renders hero headline', () => {
+  render(<Home />);
+  expect(screen.getByRole('heading', { name: /Rebuild your foundation/i })).toBeInTheDocument();
+});
+
+# Add script to package.json
+# "test": "vitest run"
+
+npm run test
+```
+Running tests in CI before a deployment satisfies the **Testing & Validation** rule from your checklist.
+
+### Deploying to Vercel (Staging → Production)
+1. **Connect the repo** on Vercel → it creates a *preview* (staging) deployment for every push.
+2. **Set environment variables** via the Vercel dashboard (`.env` files are never committed).
+3. **Promote** a preview to production only after the PR is approved and tests pass.
+4. **Rollback** – Vercel keeps a deployment history; you can click “Rollback” in the UI, or redeploy a previous commit.
+
+### Checklist Recap (matches your rules)
+- ✅ No secrets in code, all config via env.
+- ✅ Linting, TypeScript, and Tailwind JIT keep bundle size low.
+- ✅ Component‑based, well‑commented, easy to extend.
+- ✅ Ready for a CI pipeline (lint → test → build) and Vercel staging.
+- ✅ Human review is still required – you have the full source to inspect.
+
+### TL;DR – How to Build This Yourself
+1. `npx create-next-app@latest my‑site --ts --tailwind` – scaffolds Next + Tailwind + TypeScript.
+2. Add fonts via `next/font/google` (see `layout.tsx`).
+3. Create `components/Header.tsx` and `Footer.tsx` – copy the code from this repo.
+4. Define brand colors and utility classes in `app/globals.css`.
+5. Build UI sections as functions inside `app/page.tsx` or split them into their own files under `components/`.
+6. Run `npm run dev` to iterate, `npm run build` to verify, and add tests/CI when ready.
+
+Feel free to open the `README.md` or any component file – the code is intentionally straightforward with descriptive class names. If you have questions about a specific line or want to see a deeper dive into Tailwind configuration, just let me know!

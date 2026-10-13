@@ -1,0 +1,802 @@
+================================================================================
+ PROJECT EXPLANATION DOCUMENT
+================================================================================
+ Project : doc-clone — "Dr. Maya Reynolds, PsyD" clinical practice website
+ Stack   : Next.js 16.4 (App Router) + React 19 + Tailwind CSS v4 + GSAP + TypeScript
+ Date    : 2026-10-12
+ File    : PROJECT_EXPLANATION.txt
+================================================================================
+
+HOW TO READ THIS DOCUMENT
+-------------------------
+- Sections marked [PLAIN] are written for non-technical readers.
+- Sections marked [TECH] are written for developers.
+- Every component follows the same template: What / How it works / Role /
+  Technologies / Real-world use cases / Edge cases & failures / Fixes.
+
+
+--------------------------------------------------------------------------------
+1. PROJECT AT A GLANCE
+--------------------------------------------------------------------------------
+
+[PLAIN]
+This is the website for a fictional (template) clinical psychologist,
+"Dr. Maya Reynolds, PsyD", in Santa Monica, California. It is a marketing and
+lead-generation site: its job is to tell prospective clients about the practice
+(specialties, approach, office, fees), answer common questions, and convince
+them to book a consultation by calling, emailing, or submitting a contact form.
+
+It is NOT a web application with logins, a database, or server-side logic.
+There is no backend and no database. The contact form currently simulates
+sending (a timed pause, then a success screen) and must be connected to a real
+intake endpoint before launch.
+
+[TECH]
+A statically-prerendered, client-interactive marketing site. Server Components
+by default; interactivity is added through "use client" islands. Build output
+(.next/) exists, confirming the project compiles. Key flags in next.config.ts:
+cacheComponents, partialPrefetching, experimental.agentFeedback, Turbopack CSS
+pipeline via @tailwindcss/turbopack, and an images.remotePatterns allowlist for
+images.unsplash.com.
+
+Core conversion paths (what the business cares about):
+  1. tel: link  -> (310) 555-0198
+  2. mailto:    -> contact@drmayareynolds.com
+  3. Contact form -> [PLACEHOLDER — not wired to any endpoint]
+
+
+--------------------------------------------------------------------------------
+2. TECHNOLOGY STACK
+--------------------------------------------------------------------------------
+
+ Layer          Technology                          Why
+ -------------- ----------------------------------- --------------------------------
+ Framework      Next.js 16.4.0 (App Router)       File-based routing, prerendering,
+                                                   image/font optimization
+ UI runtime     React 19.3.0 / react-dom          Server + client components
+ Styling        Tailwind CSS v4 + CSS custom      Utility-first, design tokens via
+                properties (@theme inline)        @theme inline block
+ Animation      GSAP 3.15 + ScrollTrigger         Scroll-choreographed entrances
+ Icons          lucide-react                      Lightweight SVG icon set
+ Fonts          next/font/google (Inter,          Self-hosted, zero layout shift
+                Cormorant Garamond)
+ Language       TypeScript 5 (strict)             Type safety
+ Linting        ESLint 9 (eslint-config-next)     Code-quality gate
+ Bundler        Turbopack (Next 16 default)       Fast dev/build, CSS loader rules
+ Build tooling  npm scripts (dev/build/lint)      No test runner configured yet
+
+ Third-party services (external dependencies):
+ - images.unsplash.com ....... photography (hero, portrait, office gallery)
+ - google.com/maps ........... "Get directions" deep link
+ - Google Fonts .............. fetched at build time by next/font, then self-hosted
+ - 988 Suicide & Crisis Lifeline (tel:988) ... crisis safety net links
+
+
+--------------------------------------------------------------------------------
+3. COMPONENT BREAKDOWN
+--------------------------------------------------------------------------------
+
+================================================================================
+3.1 FRONTEND FRAMEWORK — Next.js App Router  [TECH]
+================================================================================
+
+WHAT IT IS
+The application shell and routing system. app/layout.tsx is the root layout
+every page inherits; app/page.tsx is the home page; app/privacy/page.tsx and
+app/good-faith-estimate/page.tsx are legal pages; app/not-found.tsx handles 404s.
+
+HOW IT WORKS
+- File-system routing: a folder under app/ becomes a URL path automatically.
+- Root layout injects: Google fonts as CSS variables (--font-inter,
+  --font-cormorant), global CSS, SEO <metadata>, JSON-LD structured data
+  (schema.org "MedicalBusiness" — helps Google show phone/address/services),
+  a keyboard skip-link, a decorative noise overlay, and the page loader.
+- Pages are Server Components by default; only interactive pieces opt into
+  the client with "use client".
+
+ROLE IN THE PROJECT
+Provides SEO (title templates, Open Graph, Twitter cards, canonical),
+accessibility foundations (lang="en", skip link), and the shared visual shell.
+
+REAL-WORLD USE CASES
+Any marketing site where SEO and first-paint performance matter (local
+businesses, clinics, agencies, portfolios).
+
+EDGE CASES / FAILURES
+- metadataBase uses practice.siteUrl (https://www.drmayareynolds.com). If the
+  site is deployed to a different domain, canonical/OG URLs will be wrong.
+- JSON-LD contains hardcoded address/phone — must stay in sync with
+  lib/practice.ts (currently duplicated in layout.tsx structuredData).
+- If Google Fonts are unreachable at build time, next/font falls back to
+  system fonts (graceful, but brand typography changes).
+
+FIXES / IMPROVEMENTS
+- Move the structuredData address/phone into lib/practice.ts (single source
+  of truth) instead of duplicating in layout.tsx.
+- Generate metadataBase from an environment variable for multi-domain deploys.
+
+================================================================================
+3.2 PAGES & ROUTING  [TECH]
+================================================================================
+
+WHAT IT IS
+Four routes exist today:
+  /                     Home (hero, about, specialties, office, FAQ, contact)
+  /privacy              Privacy notice (LegalLayout)
+  /good-faith-estimate  Fee transparency page (No Surprises Act compliance)
+  (404)                 not-found.tsx with helpful suggestions
+
+HOW IT WORKS
+Legal pages share components/LegalLayout.tsx (eyebrow, title, updated date,
+summary, children sections). The footer also links to "/disclaimer".
+
+EDGE CASES / FAILURES
+- BROKEN LINK: Footer.tsx links to /disclaimer, but no app/disclaimer/page.tsx
+  exists -> clicking it produces a 404. Either create the page or remove the
+  link.
+- All content (FAQ answers, specialties, fees) is hardcoded in component files,
+  so content updates require a developer and a redeploy.
+
+FIXES / IMPROVEMENTS
+- Add app/disclaimer/page.tsx (or drop the link).
+- For a real practice, move FAQ/specialties/fees into a headless CMS
+  (Sanity, Contentful) or MDX files so staff can edit content without deploys.
+
+================================================================================
+3.3 UI COMPONENT LIBRARY  [TECH]
+================================================================================
+
+WHAT IT IS
+22 reusable components in components/. Pattern: one visually distinct block
+per file; "use client" only where interactivity is required.
+
+Inventory and roles:
+  Header.tsx ............ Sticky glass nav; scroll-aware shadow/padding;
+                          active-section highlighting; mobile drawer with
+                          focus trap + Escape + scroll lock; magnetic CTA.
+  Footer.tsx ............ Link columns, contact info, crisis banner, legal links.
+  Copyright.tsx ......... Client-only current year (hydration-safe: renders
+                          placeholder until mount).
+  HeroSection.tsx ....... Full-viewport hero with layered Unsplash image,
+                          gradient scrims, badge, headline, CTAs, stats.
+  HeroActions.tsx ....... Two magnetic pointer-reactive buttons.
+  HeroStats.tsx ......... Count-up statistics (14 yrs, 4.2k+ hrs, 24h reply).
+  AboutSection.tsx ...... Portrait (TiltFrame 3D tilt), quote, bio, credential
+                          cards, session facts.
+  CredentialCard.tsx .... Checkmark row with cursor-tracked glow.
+  SpecialtiesSection.tsx 4 specialty panels + modalities tag cloud.
+  SpecialtyCard.tsx ..... Spotlight rim-light card with "common signals" detail.
+  OfficeSection.tsx ..... Gallery + logistics cards (parking, transit, telehealth).
+  OfficeGallery.tsx ..... 3-photo gallery with keyboard-navigable lightbox
+                          (Escape/arrows, focus trap, scroll lock, backdrop
+                          click-to-close).
+  FAQSection.tsx ........ Client-side search + single-open accordion with
+                          roving arrow-key navigation, result count, empty
+                          state with reset.
+  ContactSection.tsx .... Inquiry form: controlled inputs, per-field validation
+                          (name/email regex/phone digits/message length/consent),
+                          error summary with role="alert", honeypot spam trap,
+                          submitting/success/error states, PHI warning, crisis
+                          warning, reset flow.
+  SectionHeading.tsx .... Shared eyebrow + serif heading + lede; data-* hooks
+                          for scroll choreography.
+  ScrollProgress.tsx .... Top reading-progress bar (scaleX) + back-to-top FAB.
+  ScrollReveal.tsx ...... GSAP ScrollTrigger choreography driven by data-reveal /
+                          data-text-reveal / data-image-reveal / data-stagger
+                          attributes; plays once, never hides content again;
+                          fully disabled for reduced-motion users.
+  StickyCta.tsx ......... Mobile-only bottom conversion rail; appears after the
+                          hero scrolls away, hides over the contact section.
+  StaircaseLoader.tsx ... Brand page-load animation (8 staggered bars) that
+                          self-dismisses; instant-hide for reduced motion.
+  StaircaseLoaderWrapper  Mounts the loader client-only after hydration.
+  LegalLayout.tsx ....... Shared shell for policy pages.
+  TiltFrame.tsx ......... Subtle 3D perspective tilt on the portrait.
+
+HOW IT WORKS (composition)
+app/page.tsx composes: ScrollProgress, Header, ScrollReveal wrapping
+<main> with HeroSection -> AboutSection -> SpecialtiesSection -> OfficeSection
+-> FAQSection -> ContactSection, then Footer and StickyCta.
+
+EDGE CASES / FAILURES
+- Contact form validation runs only on blur/submit; a user can tab through
+  without triggering blur (handled: submit re-validates everything and shows
+  an error summary — good).
+- FAQ accordion keeps panel content in the DOM with aria-hidden when closed;
+  screen readers skip it, which is acceptable, but large answers are still
+  parsed.
+- OfficeGallery lightbox preloads the current image with preload — fine for 3
+  images, wasteful for a large gallery.
+- StickyCta measures DOM rects on every scroll frame (rAF-throttled) —
+  acceptable, but could use IntersectionObserver instead.
+
+FIXES / IMPROVEMENTS
+- Replace the rAF measurement in StickyCta with IntersectionObserver on the
+  hero/contact sections (cheaper, no scroll listener).
+- Add lazy preloading of adjacent lightbox images instead of preload.
+- Consider a tiny state machine (or useReducer) for the contact form status
+  as it grows.
+
+================================================================================
+3.4 INTERACTION LAYER — lib/useMicroInteractions.ts  [TECH]
+================================================================================
+
+WHAT IT IS
+The shared behavior library: 9 custom React hooks that centralize every
+scroll/pointer/keyboard behavior. (Already deeply analyzed in
+AI_CODE_ANALYSIS.txt — summary here.)
+
+HOOKS
+  usePrefersReducedMotion  OS reduced-motion setting via useSyncExternalStore;
+                           gates ALL animations (accessibility).
+  useScrollProgress        Scroll 0..1 + "past the fold" flag; rAF-throttled,
+                           passive listeners, cached snapshot object.
+  useActiveSection         IntersectionObserver picks the most-visible section
+                           for nav highlighting.
+  useInView                One-shot visibility detection.
+  useCountUp               0 -> target tween with cubic ease-out; composes
+                           useInView + reduced-motion gate.
+  useMagnetic              Pointer-offset magnetic buttons; writes --tx/--ty;
+                           CSS owns the spring easing.
+  useSpotlight             Pointer position as --mx/--my for cursor glows.
+  useBodyScrollLock        body overflow hidden/restore for overlays.
+  useEscape / useFocusTrap Modal a11y: Escape to close, Tab cycling, focus
+                           restoration to the previously focused element.
+
+ROLE
+Single place where "the site feels expensive" is implemented; reusable across
+any future page.
+
+EDGE CASES / FAILURES (from AI_CODE_ANALYSIS.txt, verified in source)
+  [I1] OfficeGallery passes an inline arrow function to useEscape -> effect
+       re-subscribes every render. Fix: wrap in useCallback (its `show`
+       neighbor already is).
+  [I2] useFocusTrap filters focusables with offsetParent !== null, which can
+       wrongly exclude position:fixed descendants. Fix: also check
+       getComputedStyle(el).visibility.
+  [I3] useInView initializes to true on the server (IO undefined) and false on
+       the client -> latent hydration mismatch if a consumer gates SSR markup
+       on inView. Currently safe because consumers mount into rendered DOM.
+  [E1] getSnapshot mutates snapshotRef inside the read (impure per
+       useSyncExternalStore contract; works, but a concurrent-rendering risk).
+  [E2] Hand-rolled equivalents of react-intersection-observer / focus-trap.
+  [E3] useCountUp doesn't early-return when target === 0.
+
+FIXES / IMPROVEMENTS
+- Apply the three [I] fixes; adopt react-intersection-observer and
+  focus-trap-react if the app grows beyond this scope.
+
+================================================================================
+3.5 DATA LAYER — lib/practice.ts  [TECH]
+================================================================================
+
+WHAT IT IS
+The single source of truth for practice identity: name, license (CA PSY 31245),
+phone (display + tel: href), email (display + mailto:), address, Google Maps
+link, response time, crisis line (988), site URL, plus the approved remote
+image URLs and their alt texts.
+
+HOW IT WORKS
+Every component imports `practice` / `images` / `imageAlts` from here, so a
+phone-number change is a one-line edit. next.config.ts images.remotePatterns
+is deliberately aligned with the Unsplash URLs used here.
+
+EDGE CASES / FAILURES
+- structuredData in app/layout.tsx duplicates address/phone instead of
+  importing them (drift risk).
+- Images are hotlinked from Unsplash: if Unsplash blocks hotlinking or an image
+  ID is deleted, hero/portrait/gallery break with no local fallback.
+- Alt texts are good, but remote images carry third-party tracking/cookie
+  considerations in some jurisdictions.
+
+FIXES / IMPROVEMENTS
+- Import practice fields into layout.tsx structuredData.
+- Download the five images into public/ (or a CDN) with next/image blur
+  placeholders, so the site never depends on Unsplash availability.
+
+================================================================================
+3.6 DESIGN SYSTEM — app/globals.css  [TECH]
+================================================================================
+
+WHAT IT IS
+Tailwind v4 entry point (@import "tailwindcss") plus a token layer:
+- @theme inline maps CSS variables to Tailwind tokens: brand palette
+  (Deep Eucalyptus #3d5a53, Terracotta #b87b5c, Silk Cream #fcfbf9,
+  Warm Sand #f5efe6, Forest #1b2622, Sage #7c9891, Slate #53625d),
+  fonts, and semantic colors.
+- Motion tokens: --ease-spring, --ease-out-soft, --dur-fast/base/slow.
+- Elevation tokens tinted with the brand hue (never pure black).
+- Utilities: .layout-container (max-width 1280 + padding), .glass-surface /
+  .glass-nav (backdrop blur, respects prefers-reduced-transparency),
+  .skip-link, .hero-text-shadow, selection/focus-visible styling,
+  scroll-margin-top so anchors clear the sticky header, text-wrap balance/pretty.
+
+ROLE
+One place to rebrand: change the @theme inline block and the whole site
+re-themes. All components reference tokens (bg-brand-primary, text-brand-muted)
+rather than hex values.
+
+EDGE CASES / FAILURES
+- backdrop-filter is expensive on low-end devices over large scroll areas;
+  mitigated by prefers-reduced-transparency fallback (solid backgrounds).
+- color-mix() in the global border-color rule is modern-CSS only (fine for
+  evergreen browsers; may surprise legacy Safari < 16.2).
+
+FIXES / IMPROVEMENTS
+- Extract a design-tokens doc for non-developers; consider Style Dictionary
+  if the brand system must sync with other products.
+
+================================================================================
+3.7 BACKEND  [TECH]  — NOT PRESENT (placeholder)
+================================================================================
+
+WHAT IT IS
+There is no backend: no API routes (app/api/), no server code beyond Next.js
+prerendering, no form endpoint. The contact form's "submission" is
+`await new Promise(resolve => setTimeout(resolve, 1100))` — a 1.1-second
+pause, then a success screen. Nothing is sent anywhere.
+
+ROLE (intended)
+Capture leads: name, email, phone, session format, primary focus, message,
+consent flag — and deliver them to the practice (email/CRM/scheduling tool).
+
+EDGE CASES / FAILURES
+- CRITICAL: launching as-is means every inquiry is silently lost. The success
+  screen is a lie.
+- The honeypot field is collected but never checked server-side (nothing to
+  check against).
+- No rate limiting, spam filtering, or encryption in transit to a real endpoint.
+- Health data (PHI): the UI correctly warns users not to include diagnoses,
+  but without a HIPAA-compliant transport/storage, any real backend added
+  naively would violate HIPAA.
+
+FIXES / IMPROVEMENTS (choose one)
+  a) Easiest & compliant: use a HIPAA-eligible form/Scheduling provider
+     (IntakeQ, SimplePractice, Jane, Calendly) and point the form/CTA there.
+  b) Next.js Route Handler (app/api/contact/route.ts) that validates server-
+     side, checks the honeypot, rate-limits, and forwards via a transactional
+     email API (Postmark/Resend) or stores encrypted in a DB — but this makes
+     the practice a HIPAA custodian: BAA, encryption at rest, audit logs,
+     access controls required.
+  c) Static site + third-party form (Formspree/Netlify Forms) with a
+     privacy review.
+Also: actually reject submissions when honeypot is filled; add CSRF protection
+if using cookies; add server-side validation (never trust client validation).
+
+================================================================================
+3.8 DATABASE  [TECH]  — NOT PRESENT
+================================================================================
+
+WHAT IT IS
+No database of any kind. All content is compiled into the bundle (FAQ items,
+specialties, fees, practice info).
+
+ROLE (if added)
+Persist leads, appointments, FAQ/specialty content, page analytics.
+
+EDGE CASES / FAILURES
+- Content changes require developer time and a redeploy.
+- No lead persistence means no follow-up pipeline.
+
+FIXES / IMPROVEMENTS
+- For leads: a managed service (airtable-backed form, CRM) avoids running a DB.
+- For content: headless CMS or MDX. If a DB is truly needed, Postgres
+  (Supabase/Neon) with TLS and least-privilege credentials via env vars.
+- Never store PHI in a database without HIPAA controls.
+
+================================================================================
+3.9 APIs  [TECH]  — THIRD-PARTY ONLY
+================================================================================
+
+What is used:
+- Unsplash image CDN (via next/image with a strict remotePatterns allowlist:
+  https + images.unsplash.com + /photo-** path).
+- Google Maps deep link (opens directions in a new tab; rel="noreferrer
+  noopener" set correctly).
+- Google Fonts (build-time fetch, self-hosted afterward — no runtime call).
+- tel: / mailto: protocol links (device-level, no API).
+
+What is NOT used: no first-party API, no analytics, no maps embed, no
+scheduling API, no email API.
+
+EDGE CASES / FAILURES
+- Unsplash downtime or hotlink protection -> broken imagery. Mitigate with
+  local copies (see 3.5).
+- No analytics means the practice cannot see which sections convert.
+
+FIXES / IMPROVEMENTS
+- Add privacy-friendly analytics (Plausible/Fathom or self-hosted PostHog)
+  with a cookie-consistent disclosure in the privacy notice.
+- Embed a real scheduling provider (Calendly/Acuity) widget or link for the
+  "Book Consultation" CTAs.
+
+================================================================================
+3.10 AUTOMATION & BUILD PIPELINE  [TECH]
+================================================================================
+
+WHAT IT IS
+- Turbopack: Next 16 bundler; next.config.ts registers @tailwindcss/turbopack
+  as the CSS loader so Tailwind v4 compiles inside the Turbopack pipeline.
+- cacheComponents + partialPrefetching (Next 16 features): finer-grained
+  caching/prefetching of page shells.
+- next/font: fetches Inter + Cormorant Garamond at build time, self-hosts
+  woff2, and injects size-adjust/fallback metrics to eliminate CLS.
+- next/image: generates optimized responsive images for remote Unsplash URLs
+  (allowlisted), with sizes hints per usage.
+- ESLint (eslint-config-next core-web-vitals + typescript) via `npm run lint`.
+- TypeScript strict mode; tsconfig paths "@/*" -> "./*".
+- AGENTS.md is auto-generated/managed by `next dev` (experimental.agentFeedback)
+  — project tooling for AI assistants working in the repo.
+
+ROLE
+Guarantees performance (fonts, images, CSS), type safety, and code quality
+on every build; dev server gives hot reload.
+
+EDGE CASES / FAILURES
+- `npm run lint` and `npm run build` are the only gates; there are NO tests
+  (CODE_OVERVIEW.txt recommends Vitest + Testing Library, not yet installed).
+- .env.local currently contains an ANTHROPIC_API_KEY. It is covered by
+  .gitignore (.env*), but a real secret sitting in the workspace should be
+  rotated/removed if it was ever committed or shared.
+- tsconfig.tsbuildinfo is present despite *.tsbuildinfo being gitignored
+  (harmless locally).
+
+FIXES / IMPROVEMENTS
+- Add Vitest + Testing Library with the smoke test from CODE_OVERVIEW.txt
+  (e.g., hero headline renders) and wire lint -> test -> build into CI.
+- Add a pre-commit hook (lint-staged) and secret scanning (gitleaks).
+- Rotate the exposed ANTHROPIC_API_KEY if it was ever pushed anywhere.
+
+================================================================================
+3.11 DEPLOYMENT & HOSTING  [TECH]
+================================================================================
+
+WHAT IT IS
+No hosting config in the repo (no vercel.json), but the stack is Vercel-
+native (README points to Vercel). Because all pages are static and there is
+no server runtime, it could equally be exported as pure static HTML
+(output: "export") to any CDN/host.
+
+ROLE
+Global CDN delivery, HTTPS, instant cache invalidation, preview deployments
+per commit.
+
+EDGE CASES / FAILURES
+- metadataBase assumes www.drmayareynolds.com; mismatched deploy domains break
+  canonicals/OG.
+- Without a custom domain + DNS, the site is unreachable to clients.
+
+FIXES / IMPROVEMENTS
+- Add vercel.json with a canonical domain + redirects (e.g., apex -> www).
+- Set SITE_URL env var and use it for metadataBase.
+- Add security headers (CSP, X-Content-Type-Options, referrer-policy) via
+  next.config or hosting headers.
+
+
+--------------------------------------------------------------------------------
+4. HOW THE COMPONENTS LINK TOGETHER & DATA FLOWS
+--------------------------------------------------------------------------------
+
+[TECH] Dependency graph (who imports whom):
+
+  app/layout.tsx
+    ├─ next/font/google ................ fonts -> CSS variables
+    ├─ lib/practice.ts ................. siteUrl for metadataBase
+    ├─ components/StaircaseLoaderWrapper -> StaircaseLoader
+    │                                     -> usePrefersReducedMotion
+    └─ app/globals.css ................. design tokens
+
+  app/page.tsx (Server Component, the composition root)
+    ├─ components/ScrollProgress ...... useScrollProgress
+    ├─ components/Header .............. useScrollProgress, useActiveSection,
+    │                                   useFocusTrap, useEscape, useBodyScrollLock,
+    │                                   useMagnetic, lib/practice
+    ├─ components/ScrollReveal ........ gsap + ScrollTrigger (reads data-* attrs)
+    │   ├─ HeroSection ................ next/image, lib/practice images/alts
+    │   │   ├─ HeroActions ............ useMagnetic (x2)
+    │   │   └─ HeroStats .............. useCountUp (x3) -> useInView + reduced-motion
+    │   ├─ AboutSection ............... TiltFrame -> usePrefersReducedMotion
+    │   │   └─ CredentialCard ........ useSpotlight
+    │   ├─ SpecialtiesSection ......... SpecialtyCard -> useSpotlight
+    │   ├─ OfficeSection .............. OfficeGallery -> useEscape, useFocusTrap,
+    │   │                                                             useBodyScrollLock
+    │   ├─ FAQSection ................ client search + accordion state
+    │   └─ ContactSection ............ form state + validation + honeypot
+    ├─ components/Footer .............. lib/practice, Copyright (client year)
+    └─ components/StickyCta ........... rAF-throttled scroll measurement
+
+[PLAIN] Think of the page as a theater:
+- lib/practice.ts is the script (all the facts about the practice).
+- The components are the set pieces and props.
+- The hooks file is the stage-direction handbook: it tells pieces when to move,
+  glow, count, or lock the stage.
+- globals.css is the lighting and paint booth: it defines the colors and
+  motions everything else refers to by name.
+- Next.js is the theater itself: it builds the set in advance (prerendering)
+  so the audience (visitor) sees the show instantly.
+
+Runtime data flow — the three live feedback loops:
+
+  (A) SCROLL LOOP
+      visitor scrolls
+        -> passive scroll/resize listeners (rAF-throttled)
+        -> useScrollProgress computes {progress, scrolled}
+        -> ScrollProgress bar scaleX + back-to-top fade
+        -> Header shadow/padding swap
+        -> useActiveSection (IntersectionObserver) -> nav link highlight
+        -> StickyCta appears after hero, hides over contact section
+        -> ScrollReveal (GSAP ScrollTrigger) plays each section's entrance ONCE
+
+  (B) POINTER LOOP
+      visitor moves mouse over a button/card/frame
+        -> useMagnetic writes --tx/--ty  -> CSS spring-translates the button
+        -> useSpotlight writes --mx/--my -> CSS radial glow follows cursor
+        -> TiltFrame writes transform    -> portrait tilts in 3D
+      (all loops are disabled on touch devices and for reduced-motion users)
+
+  (C) OVERLAY/MODAL LOOP
+      visitor opens mobile nav or the office lightbox
+        -> useBodyScrollLock locks page scroll
+        -> useFocusTrap cycles Tab inside the overlay, focuses first item
+        -> Escape (useEscape) or backdrop click closes
+        -> focus is restored to the element that opened the overlay
+
+  (D) CONVERSION LOOP (the business goal)
+      visitor reads -> clicks "Book Consultation" (anchor to #contact)
+        -> fills form -> client validation
+        -> [PLACEHOLDER] simulated send -> success screen with summary
+        -> intended: lead delivered to practice (currently NOT implemented)
+      or visitor calls/email directly via tel:/mailto: links (always live)
+
+
+--------------------------------------------------------------------------------
+5. THE PROJECT AS A WHOLE
+--------------------------------------------------------------------------------
+
+PURPOSE
+A high-converting, accessibility-conscious marketing website for a boutique
+clinical psychology practice. It must (1) establish credibility (credentials,
+license, modalities, office photos), (2) educate (specialties, FAQ, fees,
+Good Faith Estimate, privacy notice), (3) convert (multiple CTAs, sticky mobile
+rail, count-up stats), and (4) do no harm (crisis line banners, PHI warnings,
+reduced-motion support, keyboard/screen-reader accessibility).
+
+WORKFLOW (visitor lifecycle)
+  1. Load: staircase loader plays (or instantly hides for reduced motion);
+     prerendered HTML paints immediately; fonts self-hosted (no FOUT/CLS).
+  2. First viewport: hero with photo, headline, magnetic CTAs, count-up stats.
+  3. Scroll: progress bar, nav highlights, sections choreograph in via GSAP.
+  4. Explore: about/credentials, specialties (spotlight cards), office gallery
+     lightbox, searchable FAQ accordion.
+  5. Decide: fees transparency (GFE page), privacy notice.
+  6. Convert: sticky mobile rail or header CTA scrolls to contact form;
+     validated submission shows a success state (placeholder) or the visitor
+     calls/emails directly.
+  7. Safety net: crisis banners in footer + contact area point to 988/911.
+
+END-TO-END LIFECYCLE (engineering)
+  Author (TSX/CSS/TS) -> `npm run dev` (Turbopack HMR) -> `npm run lint`
+  -> `npm run build` (prerender + optimize images/fonts + typecheck) ->
+  deploy (Vercel or static export) -> CDN -> visitor browser (hydration +
+  interaction loops) -> [future] form endpoint/CRM -> practice follows up.
+
+
+--------------------------------------------------------------------------------
+6. REAL-WORLD APPLICATION SCENARIOS
+--------------------------------------------------------------------------------
+
+- Private therapy/medical practices (the literal use case): psychology,
+  counseling, chiropractic, dental, cosmetic clinics.
+- Any local professional services firm needing lead capture: law, financial
+  planning, architecture, consulting.
+- Telehealth practices: the format picker (in-person vs telehealth) pattern is
+  directly reusable.
+- High-end personal brands/portfolios: the motion design system (magnetic
+  buttons, spotlight cards, scroll choreography) is a reusable template.
+- Compliance-driven sites: the GFE + privacy + crisis-banner pattern fits any
+  US healthcare provider (No Surprises Act, HIPAA-aware UX).
+- The hooks library alone is reusable in ANY React/Next project needing
+  scroll/pointer/modal behaviors with accessibility built in.
+
+
+--------------------------------------------------------------------------------
+7. FULL WORKFLOW DIAGRAM (INPUT -> OUTPUT, WITH FEEDBACK LOOPS)
+--------------------------------------------------------------------------------
+
+ INPUT (visitor)                     SYSTEM                                   OUTPUT
+ =============                     ======                                   ======
+
+  open page
+     |
+     v
+ +----------------+   prerendered    +----------------------------------+
+ | Browser request|--------------->  | Next.js static HTML + fonts      |
+ +----------------+                  | + images (CDN)                   |
+                                    +----------------+-----------------+
+                                                     |
+                                     hydration (React client JS)
+                                                     |
+                                    +----------------v-----------------+
+                                    |  STAIRCASE LOADER (brand intro,  |
+                                    |  auto-dismiss; skipped if        |
+                                    |  reduced-motion)                 |
+                                    +----------------+-----------------+
+                                                     |
+   +---------------------------- VIEWPORT LOOPS --------------------------+
+   |                                                                     |
+   |  [SCROLL]                          [POINTER]                        |
+   |  scroll event                      mouse move                         |
+   |     | rAF-throttle                     |                              |
+   |     v                                 v                              |
+   |  useScrollProgress  ------>  progress bar, header shadow,           |
+   |  useActiveSection  ------->  nav highlight, back-to-top             |
+   |  StickyCta measure   ---->  mobile CTA rail show/hide               |
+   |  GSAP ScrollTrigger  ---->  section entrances (once)                |
+   |                             useMagnetic -> button follows cursor    |
+   |                             useSpotlight -> card glow follows       |
+   |                             TiltFrame -> portrait 3D tilt           |
+   |                                                                     |
+   |  [EXPLORE]                       [OVERLAY]                          |
+   |  FAQ search/filter               open nav drawer / lightbox         |
+   |  accordion (arrow keys)             | focus trap + scroll lock      |
+   |  lightbox (arrows/Escape)           | Escape/backdrop closes        |
+   |                                     | focus restored                |
+   |                                                                     |
+   +----------------------------------+----------------------------------+
+                                      |
+   +----------------------------------v----------------------------------+
+   | DECISION                                                            |
+   |  CTA click -> #contact (smooth anchor, scroll-margin clears header) |
+   |  or direct: tel:(310)555-0198  /  mailto:contact@...             |
+   +----------------------------------+----------------------------------+
+                                      |
+   +----------------------------------v----------------------------------+
+   | CONTACT FORM                                                        |
+   |  type -> blur validation (name/email/phone/message/consent)         |
+   |  submit -> full validation -> honeypot -> [PLACEHOLDER 1.1s]        |
+   |     |                              |                                |
+   |     v                              v                                |
+   |  success screen              error summary (role=alert,             |
+   |  (name, format, focus)        focus moved to it)                    |
+   +----------------------------------+----------------------------------+
+                                      |
+   +----------------------------------v----------------------------------+
+   | INTENDED OUTPUT (not yet wired):                                    |
+   |  lead -> secure intake endpoint / CRM -> practice replies in        |
+   |  24-48 business hours -> schedules 15-min consult -> intake session |
+   |  CURRENT REALITY: nothing is sent; only tel:/mailto: paths work.    |
+   +---------------------------------------------------------------------+
+
+ FEEDBACK LOOPS SUMMARY
+ - Scroll feedback: page reacts to scroll (bar, nav, CTA rail, animations).
+ - Pointer feedback: buttons/cards/portrait react to the cursor.
+ - Modal feedback: overlays trap focus, lock scroll, restore context.
+ - Form feedback: inline errors, live character count, submitting spinner,
+   success/error summaries, reset flow.
+ - Accessibility feedback: reduced-motion gating, keyboard parity for every
+   mouse interaction, aria-live announcements.
+
+
+--------------------------------------------------------------------------------
+8. CONSOLIDATED EDGE CASES & FAILURE SCENARIOS
+--------------------------------------------------------------------------------
+
+ CRITICAL
+ 1. Contact form is a simulation — every lead is lost if launched as-is.
+ 2. Footer links to /disclaimer which does not exist (404).
+ 3. ANTHROPIC_API_KEY sits in .env.local (gitignored, but rotate if shared).
+
+ HIGH
+ 4. All imagery hotlinked from Unsplash — provider outage/deleted IDs break
+    hero, portrait, and gallery; no local fallback or blur placeholder.
+ 5. No analytics — conversion performance is invisible.
+ 6. No server-side validation/rate-limiting possible until a backend exists;
+    honeypot is never checked.
+
+ MEDIUM
+ 7. Hardcoded content (FAQ, specialties, fees) requires a developer to change.
+ 8. metadataBase/structuredData hardcode the domain, address, phone — drift
+    risk with lib/practice.ts; wrong canonicals on other domains.
+ 9. Latent hydration bug in useInView (server-true/client-false init).
+ 10. useFocusTrap offsetParent filter can drop position:fixed focusables.
+ 11. OfficeGallery useEscape re-subscribes every render (inline callback).
+ 12. getSnapshot mutates state during read (useSyncExternalStore impurity).
+ 13. No tests in CI; only lint + build gates.
+
+ LOW
+ 14. StickyCta measures rects per scroll frame (could be IO-based).
+ 15. FAQ panels remain in DOM when closed (aria-hidden) — fine for 8 items.
+ 16. Lightbox preloads current image — wasteful if gallery grows.
+ 17. backdrop-filter cost on low-end devices (mitigated by
+     prefers-reduced-transparency).
+ 18. color-mix()/modern CSS needs evergreen browsers.
+
+
+--------------------------------------------------------------------------------
+9. PRIORITIZED FIXES, IMPROVEMENTS & ALTERNATIVES
+--------------------------------------------------------------------------------
+
+ BEFORE LAUNCH (must)
+ [1] Wire the contact form to a real, HIPAA-aware intake path (see 3.7):
+     preferred: a HIPAA-eligible scheduling/intake provider; otherwise a
+     Route Handler with server-side validation, honeypot check, rate limiting,
+     TLS, and a BAA-covered mail/DB pipeline.
+ [2] Create app/disclaimer/page.tsx or remove the footer link.
+ [3] Remove/rotate the ANTHROPIC_API_KEY from the workspace.
+ [4] Download the 5 Unsplash images locally (public/) with blur placeholders.
+
+ SHOULD
+ [5] Add privacy-friendly analytics + update the privacy notice accordingly.
+ [6] Add Vitest + Testing Library smoke tests (hero headline, form validation,
+     accordion) and a CI pipeline: lint -> test -> build.
+ [7] Deduplicate structuredData through lib/practice.ts; drive metadataBase
+     from an env var (SITE_URL).
+ [8] Fix the three hook issues [I1][I2][I3] from AI_CODE_ANALYSIS.txt.
+
+ COULD
+ [9] Headless CMS or MDX for FAQ/specialties/fees so staff self-serve.
+ [10] Embed or link a real scheduling provider (Calendly/Acuity/IntakeQ).
+ [11] Add security headers (CSP, referrer-policy) and error monitoring
+     (Sentry) with an error boundary around the interactive islands.
+ [12] Consider output: "export" for a fully static, host-agnostic build.
+ [13] Replace hand-rolled hooks with react-intersection-observer /
+     focus-trap-react if scope grows; add useCountUp target===0 guard.
+
+ ALTERNATIVE ARCHITECTURES
+ - If the practice wants bookings online: swap the form for a scheduling
+   provider's widget (fastest, compliance handled for you).
+ - If content volume grows: Next + Sanity (content) + Vercel (hosting).
+ - If a member portal/patient records emerge: separate HIPAA-scoped app
+   (never co-mingle marketing site and PHI storage).
+
+
+--------------------------------------------------------------------------------
+10. GLOSSARY (for non-technical readers)
+--------------------------------------------------------------------------------
+
+ Prerendering ... building the HTML in advance so pages load instantly.
+ Hydration ...... React attaching interactivity to the pre-built page.
+ Hook ........... a reusable piece of React behavior (e.g., "what to do on
+                  scroll").
+ CSS variable ... a named color/motion value defined once, reused everywhere.
+ IntersectionObserver ... browser API that reports when an element scrolls
+                  into view.
+ rAF (requestAnimationFrame) ... syncing work to the browser's paint cycle
+                  to avoid jank.
+ Honeypot ....... a hidden form field that only bots fill in (spam trap).
+ JSON-LD ........ structured data Google reads to show rich business info.
+ PHI ............ Protected Health Information (US health privacy law).
+ CLS ............ Cumulative Layout Shift (page jumping while loading).
+ BAA ............ Business Associate Agreement (required for HIPAA vendors).
+
+
+--------------------------------------------------------------------------------
+APPENDIX — FILE MAP
+--------------------------------------------------------------------------------
+
+ doc-clone/
+ ├─ app/
+ │   ├─ layout.tsx ........ root layout, fonts, SEO, JSON-LD, skip link
+ │   ├─ page.tsx .......... home composition
+ │   ├─ globals.css ....... Tailwind v4 + brand tokens + utilities (466 lines)
+ │   ├─ privacy/page.tsx .. privacy notice
+ │   ├─ good-faith-estimate/page.tsx  fees (No Surprises Act)
+ │   ├─ not-found.tsx ..... 404 page
+ │   └─ icon.svg, favicon.ico
+ ├─ components/ ............ 22 UI components (see 3.3)
+ ├─ lib/
+ │   ├─ useMicroInteractions.ts  9 hooks (279 lines, see 3.4)
+ │   └── practice.ts ............ data single source of truth (47 lines)
+ ├─ public/ ................ static assets
+ ├─ next.config.ts ......... Turbopack CSS, image allowlist, cache flags
+ ├─ package.json ........... deps: next 16.4, react 19.3, gsap, lucide-react,
+ │                           tailwind v4; scripts: dev/build/start/lint
+ ├─ tsconfig.json .......... strict TS, "@/*" path alias
+ ├─ eslint.config.mjs ...... core-web-vitals + typescript presets
+ ├─ CODE_OVERVIEW.txt ...... extension guide (suggests Vitest)
+ ├─ AI_CODE_ANALYSIS.txt ... deep analysis of the hooks file
+ └─ .env.local ............. contains an ANTHROPIC_API_KEY (rotate/remove)
+
+================================================================================
+ END OF DOCUMENT
+================================================================================
